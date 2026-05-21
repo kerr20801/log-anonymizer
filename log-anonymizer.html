@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🪵 Log Anonymizer</title>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg2: #161b22;
+  --bg3: #21262d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --accent: #58a6ff;
+  --accent2: #3fb950;
+  --warn: #d29922;
+  --danger: #f85149;
+  --purple: #bc8cff;
+  --orange: #ffa657;
+  --tag-bg: #1f2937;
+  --tag-border: #374151;
+  --mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.header h1 { font-size: 16px; font-weight: 600; }
+.header .sub { color: var(--text2); font-size: 12px; margin-left: 4px; }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.lang-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.lang-btn:hover { color: var(--accent); border-color: var(--accent); }
+.mode-tabs { display: flex; gap: 4px; }
+.mode-tab {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.mode-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mode-tab:hover:not(.active) { color: var(--text); border-color: var(--text2); }
+
+/* ── Layout ── */
+.layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 230px;
+  min-width: 230px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.sidebar-section { padding: 12px; border-bottom: 1px solid var(--border); }
+.sidebar-section h3 { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text2); margin-bottom: 8px; }
+
+/* Stats */
+.stats-grid { display: flex; flex-direction: column; gap: 4px; }
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--bg3);
+  font-size: 12px;
+}
+.stat-label { display: flex; align-items: center; gap: 6px; color: var(--text2); }
+.stat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.stat-count { font-weight: 600; font-family: var(--mono); color: var(--text); }
+.stat-row.has-hits .stat-count { color: var(--warn); }
+
+/* Log type */
+.logtype-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-family: var(--mono);
+  width: 100%;
+  color: var(--text2);
+}
+.logtype-badge.detected { border-color: var(--accent2); color: var(--accent2); }
+.logtype-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.logtype-badge.detected .logtype-indicator { background: var(--accent2); }
+
+/* Rule toggles */
+.rule-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.rule-toggle label { color: var(--text2); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+.rule-toggle input[type=checkbox] {
+  width: 14px; height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.rule-toggle.active label { color: var(--text); }
+
+/* Custom inputs */
+.custom-input-row { display: flex; gap: 4px; margin-top: 4px; }
+.custom-input-row input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+.custom-input-row input:focus { outline: none; border-color: var(--accent); }
+.btn-add {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-add:hover { border-color: var(--accent); color: var(--accent); }
+.tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.tag {
+  background: var(--tag-bg);
+  border: 1px solid var(--tag-border);
+  color: var(--text2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tag:hover { border-color: var(--danger); color: var(--danger); }
+.tag .x { font-size: 10px; opacity: .6; }
+
+/* Mask username */
+.mask-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.mask-user-row label { color: var(--text2); cursor: pointer; }
+.mask-user-row input { accent-color: var(--accent); cursor: pointer; }
+.user-input {
+  margin-top: 4px;
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--mono);
+}
+.user-input:focus { outline: none; border-color: var(--accent); }
+
+/* Action buttons */
+.action-btns { display: flex; flex-direction: column; gap: 6px; padding: 12px; }
+.btn {
+  width: 100%;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: #79c0ff; }
+.btn-secondary { background: var(--bg3); color: var(--text); border-color: var(--border); }
+.btn-secondary:hover { border-color: var(--text2); }
+.btn-ghost { background: transparent; color: var(--text2); border-color: var(--border); }
+.btn-ghost:hover { color: var(--danger); border-color: var(--danger); }
+
+/* ── Main panels ── */
+.panels {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  gap: 0;
+}
+
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+.panel:last-child { border-right: none; }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.panel-header span { font-weight: 600; color: var(--text); }
+.panel-copy {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.panel-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+textarea, .output-area {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: none;
+  outline: none;
+  padding: 12px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: none;
+  tab-size: 2;
+}
+textarea::placeholder { color: var(--text2); opacity: .5; }
+
+.output-area {
+  white-space: pre-wrap;
+  word-break: break-all;
+  pointer-events: none;
+}
+.output-area .tag-ip     { color: #79c0ff; }
+.output-area .tag-email  { color: #ffa657; }
+.output-area .tag-mac    { color: #bc8cff; }
+.output-area .tag-token  { color: #ff7b72; }
+.output-area .tag-jwt    { color: #d2a8ff; }
+.output-area .tag-url    { color: #56d364; }
+.output-area .tag-host   { color: #e3b341; }
+.output-area .tag-cred   { color: #f0883e; }
+.output-area .tag-user   { color: #79c0ff; }
+.output-area .tag-lit    { color: #ff7b72; }
+.output-area .tag-heur   { color: #e3b341; }
+
+/* ── Restore mode ── */
+.restore-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+.restore-panel .panel-body { display: flex; gap: 0; }
+.restore-left, .restore-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+.restore-right { border-right: none; }
+.restore-panel .panel-header { border-bottom: 1px solid var(--border); }
+.restore-info {
+  padding: 10px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.restore-info a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+/* ── Status bar ── */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 5px 14px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.statusbar .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-family: var(--mono);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+}
+.statusbar .pill.clean { border-color: var(--accent2); color: var(--accent2); }
+.statusbar .pill.masked { border-color: var(--warn); color: var(--warn); }
+
+/* Map file drop zone */
+.map-drop {
+  margin: 10px 12px;
+  border: 1.5px dashed var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text2);
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.map-drop:hover, .map-drop.over { border-color: var(--accent); color: var(--accent); }
+.map-drop input { display: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .sidebar { width: 200px; min-width: 200px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <span id="h-title" style="font-size:16px;font-weight:600;">🪵 Log Anonymizer</span>
+    <span class="sub" id="h-sub">貼上 Log，自動遮蔽 IP · Token · 憑證 · 主機名</span>
+  </div>
+  <div class="header-right">
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-anon" onclick="setMode('anon')" id="tab-anon">🛡 遮蔽</button>
+      <button class="mode-tab" id="tab-restore" onclick="setMode('restore')">↩ 還原</button>
+    </div>
+    <button class="lang-btn" id="lang-btn" onclick="setLang(_lang==='zh'?'en':'zh')">EN</button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <!-- Stats -->
+    <div class="sidebar-section">
+      <h3 id="s-stats">偵測結果</h3>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-row" data-key="PRIVATE_IP">
+          <span class="stat-label"><span class="stat-dot" style="background:#79c0ff"></span><span id="sl-ip">私有 IP</span></span>
+          <span class="stat-count" id="sc-ip">0</span>
+        </div>
+        <div class="stat-row" data-key="EMAIL">
+          <span class="stat-label"><span class="stat-dot" style="background:#ffa657"></span><span id="sl-email">Email</span></span>
+          <span class="stat-count" id="sc-email">0</span>
+        </div>
+        <div class="stat-row" data-key="MAC">
+          <span class="stat-label"><span class="stat-dot" style="background:#bc8cff"></span><span id="sl-mac">MAC 位址</span></span>
+          <span class="stat-count" id="sc-mac">0</span>
+        </div>
+        <div class="stat-row" data-key="TOKEN">
+          <span class="stat-label"><span class="stat-dot" style="background:#ff7b72"></span><span id="sl-token">Token / API Key</span></span>
+          <span class="stat-count" id="sc-token">0</span>
+        </div>
+        <div class="stat-row" data-key="JWT">
+          <span class="stat-label"><span class="stat-dot" style="background:#d2a8ff"></span><span id="sl-jwt">JWT</span></span>
+          <span class="stat-count" id="sc-jwt">0</span>
+        </div>
+        <div class="stat-row" data-key="URL_CRED">
+          <span class="stat-label"><span class="stat-dot" style="background:#56d364"></span><span id="sl-url">URL 憑證</span></span>
+          <span class="stat-count" id="sc-url">0</span>
+        </div>
+        <div class="stat-row" data-key="HOSTNAME">
+          <span class="stat-label"><span class="stat-dot" style="background:#e3b341"></span><span id="sl-host">自訂主機名</span></span>
+          <span class="stat-count" id="sc-host">0</span>
+        </div>
+        <div class="stat-row" data-key="CREDENTIAL">
+          <span class="stat-label"><span class="stat-dot" style="background:#f0883e"></span><span id="sl-cred">Key=Value 憑證</span></span>
+          <span class="stat-count" id="sc-cred">0</span>
+        </div>
+        <div class="stat-row" data-key="USERNAME">
+          <span class="stat-label"><span class="stat-dot" style="background:#79c0ff"></span><span id="sl-user">使用者名稱</span></span>
+          <span class="stat-count" id="sc-user">0</span>
+        </div>
+        <div class="stat-row" data-key="LITERAL">
+          <span class="stat-label"><span class="stat-dot" style="background:#ff7b72"></span><span id="sl-lit">自訂字面值</span></span>
+          <span class="stat-count" id="sc-lit">0</span>
+        </div>
+        <div class="stat-row" data-key="HEURISTIC">
+          <span class="stat-label"><span class="stat-dot" style="background:#e3b341"></span><span id="sl-heur">啟發式</span></span>
+          <span class="stat-count" id="sc-heur">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log type -->
+    <div class="sidebar-section">
+      <h3 id="s-logtype">格式偵測</h3>
+      <div class="logtype-badge" id="logtype-badge">
+        <span class="logtype-indicator"></span>
+        <span id="logtype-label">尚未偵測</span>
+      </div>
+    </div>
+
+    <!-- Active rules -->
+    <div class="sidebar-section">
+      <h3 id="s-rules">啟用規則</h3>
+      <div id="rules-list">
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-ip" checked onchange="reprocess()"> <span id="rl-ip">私有 IP (RFC 1918)</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-email" checked onchange="reprocess()"> <span id="rl-email">Email 地址</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-mac" checked onchange="reprocess()"> <span id="rl-mac">MAC 位址</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-token" checked onchange="reprocess()"> <span id="rl-token">Token / API Key</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-jwt" checked onchange="reprocess()"> <span id="rl-jwt">JWT</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-url" checked onchange="reprocess()"> <span id="rl-url">URL 憑證</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-cred" checked onchange="reprocess()"> <span id="rl-cred">Key=Value 憑證</span></label></div>
+        <div class="rule-toggle active"><label><input type="checkbox" id="r-heur" checked onchange="reprocess()"> <span id="rl-heur">啟發式偵測</span></label></div>
+      </div>
+    </div>
+
+    <!-- Custom domains -->
+    <div class="sidebar-section">
+      <h3 id="s-domains">自訂網域</h3>
+      <div class="custom-input-row">
+        <input type="text" id="domain-input" placeholder="example.com" onkeydown="if(e.key==='Enter')addDomain(event)">
+        <button class="btn-add" onclick="addDomain()" id="b-add-domain">+ 加入</button>
+      </div>
+      <div class="tag-list" id="domain-tags"></div>
+    </div>
+
+    <!-- Custom literals -->
+    <div class="sidebar-section">
+      <h3 id="s-literals">遮蔽字串</h3>
+      <div class="custom-input-row">
+        <input type="text" id="literal-input" placeholder="my-secret-token" onkeydown="if(e.key==='Enter')addLiteral(event)">
+        <button class="btn-add" onclick="addLiteral()" id="b-add-literal">+ 加入</button>
+      </div>
+      <div class="tag-list" id="literal-tags"></div>
+    </div>
+
+    <!-- Mask username -->
+    <div class="sidebar-section">
+      <h3 id="s-username">使用者名稱</h3>
+      <div class="mask-user-row">
+        <label for="mask-user-cb" id="mu-label">遮蔽路徑中的使用者名</label>
+        <input type="checkbox" id="mask-user-cb" onchange="toggleUserInput()">
+      </div>
+      <input type="text" class="user-input" id="user-input" placeholder="alice" style="display:none;margin-top:6px" oninput="reprocess()">
+    </div>
+
+    <!-- Actions -->
+    <div class="action-btns">
+      <button class="btn btn-secondary" onclick="copyOutput()" id="b-copy">📋 複製結果</button>
+      <button class="btn btn-secondary" onclick="downloadOutput()" id="b-dl">💾 下載遮蔽版</button>
+      <button class="btn btn-secondary" onclick="downloadMap()" id="b-map">🗺 下載對照表 (.map.json)</button>
+      <button class="btn btn-ghost" onclick="clearAll()" id="b-clear">✕ 清除</button>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- Main content -->
+  <div class="panels" id="anon-mode">
+
+    <!-- Input -->
+    <div class="panel">
+      <div class="panel-header">
+        <span id="ph-input">輸入 Log</span>
+        <button class="panel-copy" onclick="document.getElementById('input-area').select()" id="pb-select">全選</button>
+      </div>
+      <div class="panel-body">
+        <textarea id="input-area" spellcheck="false" oninput="onInput()" id="ph-paste-hint"></textarea>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span id="ph-output">遮蔽結果</span>
+        <button class="panel-copy" onclick="copyOutput()" id="pb-copy">複製</button>
+      </div>
+      <div class="panel-body">
+        <div class="output-area" id="output-area"></div>
+      </div>
+    </div>
+
+  </div><!-- /anon-mode -->
+
+  <!-- Restore mode -->
+  <div class="restore-panel" id="restore-mode" style="display:none">
+    <div style="display:flex;flex:1;overflow:hidden;">
+      <div class="restore-left panel">
+        <div class="panel-header"><span id="rh-anon">遮蔽後 Log</span></div>
+        <div class="restore-info" id="ri-hint">
+          載入 .map.json 後貼上遮蔽後的 Log，即可還原
+        </div>
+        <div class="map-drop" id="map-drop" onclick="document.getElementById('map-file').click()" ondragover="mapDragOver(event)" ondrop="mapDrop(event)">
+          <input type="file" id="map-file" accept=".json" onchange="loadMapFile(this.files[0])">
+          <span id="md-hint">🗺 拖曳或點選 .map.json</span>
+        </div>
+        <div class="panel-body">
+          <textarea id="restore-input" spellcheck="false" oninput="onRestoreInput()" style="height:100%"></textarea>
+        </div>
+      </div>
+      <div class="restore-right panel">
+        <div class="panel-header">
+          <span id="rh-orig">還原結果</span>
+          <button class="panel-copy" onclick="copyRestore()" id="pb-restore">複製</button>
+        </div>
+        <div class="panel-body">
+          <div class="output-area" id="restore-output"></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /restore-mode -->
+
+</div><!-- /layout -->
+
+<div class="statusbar">
+  <span id="sb-chars">0 chars</span>
+  <span id="sb-lines">0 lines</span>
+  <span id="status-pill" class="pill">—</span>
+  <span style="margin-left:auto;color:var(--text2)" id="sb-logtype-hint"></span>
+</div>
+
+<script>
+// ── MD5 (stable token IDs) ──
+function md5(s){function h(a,b){return(a+b)&0xFFFFFFFF}function r(a,b){return a<<b|a>>>(32-b)}var i,j,k,l,m,n,o,p,q,x=[],y=[];s=unescape(encodeURIComponent(s));var z=s.length,A=[],B=0,C=8*z;for(i=0;i<z;i++)A[i>>2]|=s.charCodeAt(i)<<(i%4)*8;A[z>>2]|=128<<(z%4)*8;A[(z+64>>9<<4)+14]=C;var D=1732584193,E=-271733879,F=-1732584194,G=271733878;for(i=0;i<A.length;i+=16){var H=D,I=E,J=F,K=G;for(j=0;j<64;j++){if(j<16){m=E&F|~E&G;n=j}else if(j<32){m=G&E|~G&F;n=5*j+1&15}else if(j<48){m=E^F^G;n=3*j+5&15}else{m=F^(E|~G);n=7*j&15}k=h(h(D,m),h(A[i+n],[1518500249,2400959708,3634445448,38016083,3724199864,1236535329,3292421392,655236948,4259657740,2763975236,3601079683,2804909785,1163472177,3599996992,1061603249,3322068202,4237264978,3150833190,1288478049,3135694919,3926895998,3293106939,1444272546,4161670925,568446438,3275163606,3001838955,3506417376,2642076791,3505702413,2820302363,3307094438,3299817065,3602228565,1994600683,3767210445,3462069994,1424219616,4197552440,2239931603,3817719386,1565236510,4097060227,3080128494,2641477591,3858640603,3540784497,1839948814,2869729748,2975521773,3094541289,4138776411,2404321049,2406658673,3293153500,3478798890,3941446199,3553267618,2948832253,3201030204,1460405455,3301527123,1797216336,2677197444,3772958167,4224335729][j]),r([7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21][j]));G=F;F=E;E=D;D=k}D=h(D,H);E=h(E,I);F=h(F,J);G=h(G,K)}return[D,E,F,G].map(v=>('00000000'+((v&0xFF)<<24|(v>>8&0xFF)<<16|(v>>16&0xFF)<<8|v>>>24).toString(16)).slice(-8)).join('')}
+
+function stableId(val){ return md5(val).slice(0,6); }
+
+// ── State ──
+let _lang = localStorage.getItem('la-lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
+let _mode = 'anon';
+let _map = {}; // token→original for restore
+let _loadedMap = null; // loaded .map.json
+let _domains = JSON.parse(localStorage.getItem('la-domains') || '[]');
+let _literals = JSON.parse(localStorage.getItem('la-literals') || '[]');
+let _stats = {};
+let _detectedLogType = '';
+
+// ── Rules ──
+const PRIVATE_IP_RE = /\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b/g;
+const PUBLIC_IP_RE = /\b(\d{1,3}\.){3}\d{1,3}\b/g;
+const MAC_RE = /\b([0-9a-fA-F]{2}[:\-]){5}[0-9a-fA-F]{2}\b/g;
+const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
+const JWT_RE = /eyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]+/g;
+const URL_CRED_RE = /([a-zA-Z][a-zA-Z0-9+\-.]*):\/\/([^:@\s]+):([^@\s]+)@/g;
+
+// Known token prefixes
+const TOKEN_PREFIX_RE = /\b(glpat-|ghp_|ghs_|gho_|github_pat_|xox[baprs]-|sk-|pk_live_|pk_test_|Bearer |xoxb-|AKIA[A-Z0-9]{16}|ya29\.|AIza)[A-Za-z0-9_\-]{8,}/g;
+
+// Heuristic: key=value pairs that look like secrets
+const HEURISTIC_RE = /\b(password|passwd|secret|api_?key|auth_?token|access_?token|private_?key|client_?secret|db_?pass(?:word)?|conn(?:ection)?_?str(?:ing)?)\s*[=:]\s*["']?([A-Za-z0-9_\-\.\+\/=]{8,})["']?/gi;
+
+// Log format patterns
+const LOG_FORMATS = [
+  { name: 'nginx-access',    nameEn: 'nginx access log',   re: /\d+\.\d+\.\d+\.\d+ - - \[/ },
+  { name: 'nginx-error',     nameEn: 'nginx error log',    re: /\[error\].*\[client/ },
+  { name: 'syslog',          nameEn: 'syslog',             re: /\w{3}\s+\d+ \d{2}:\d{2}:\d{2} \S+ \S+\[/ },
+  { name: 'journalctl',      nameEn: 'journalctl',         re: /^\w{3} \d+ \d{2}:\d{2}:\d{2}|systemd\[\d+\]/ },
+  { name: 'docker',          nameEn: 'docker logs',        re: /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z/ },
+  { name: 'kubernetes',      nameEn: 'kubernetes',         re: /I\d{4} \d{2}:\d{2}:\d{2}\.\d+\s+\d+ \w+\.go/ },
+  { name: 'apache-access',   nameEn: 'apache access log',  re: /\d+\.\d+\.\d+\.\d+ - .* \[.*\] "(GET|POST|PUT|DELETE|HEAD)/ },
+  { name: 'python-logging',  nameEn: 'python logging',     re: /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[,\.]?\d* (DEBUG|INFO|WARNING|ERROR|CRITICAL)/ },
+  { name: 'json-log',        nameEn: 'JSON log',           re: /^\s*\{".*"level"\s*:|^\s*\{".*"timestamp"\s*:/ },
+  { name: 'windows-event',   nameEn: 'Windows event log',  re: /EventID:\s*\d+|Source:\s*\w+\s+Event/ },
+];
+
+// ── Core redaction engine ──
+function redact(text){
+  _map = {};
+  _stats = { PRIVATE_IP:0, EMAIL:0, MAC:0, TOKEN:0, JWT:0, URL_CRED:0, HOSTNAME:0, CREDENTIAL:0, USERNAME:0, LITERAL:0, HEURISTIC:0 };
+
+  let out = text;
+
+  // 1. Custom literals (highest priority, exact match)
+  if(_literals.length){
+    _literals.forEach(lit => {
+      const re = new RegExp(escapeRegex(lit), 'g');
+      out = out.replace(re, m => {
+        const id = stableId(m);
+        const tag = `[[LITERAL_${id}]]`;
+        _map[tag] = m;
+        _stats.LITERAL++;
+        return tag;
+      });
+    });
+  }
+
+  // 2. JWT (before generic token to avoid partial match)
+  if(document.getElementById('r-jwt').checked){
+    out = out.replace(JWT_RE, m => {
+      const id = stableId(m);
+      const tag = `[[JWT_${id}]]`;
+      _map[tag] = m;
+      _stats.JWT++;
+      return tag;
+    });
+  }
+
+  // 3. URL credentials
+  if(document.getElementById('r-url').checked){
+    out = out.replace(URL_CRED_RE, (m, proto, user, pass) => {
+      const id = stableId(pass);
+      const tag = `[[URL_CRED_${id}]]`;
+      _map[tag] = pass;
+      _stats.URL_CRED++;
+      return `${proto}://${user}:${tag}@`;
+    });
+  }
+
+  // 4. Known token prefixes
+  if(document.getElementById('r-token').checked){
+    out = out.replace(TOKEN_PREFIX_RE, m => {
+      const id = stableId(m);
+      const tag = `[[TOKEN_${id}]]`;
+      _map[tag] = m;
+      _stats.TOKEN++;
+      return tag;
+    });
+  }
+
+  // 5. MAC addresses (before IP to avoid false positives)
+  if(document.getElementById('r-mac').checked){
+    out = out.replace(MAC_RE, m => {
+      const id = stableId(m);
+      const tag = `[[MAC_${id}]]`;
+      _map[tag] = m;
+      _stats.MAC++;
+      return tag;
+    });
+  }
+
+  // 6. Email
+  if(document.getElementById('r-email').checked){
+    out = out.replace(EMAIL_RE, m => {
+      const id = stableId(m);
+      const tag = `[[EMAIL_${id}]]`;
+      _map[tag] = m;
+      _stats.EMAIL++;
+      return tag;
+    });
+  }
+
+  // 7. Private IP
+  if(document.getElementById('r-ip').checked){
+    out = out.replace(PRIVATE_IP_RE, m => {
+      const id = stableId(m);
+      const tag = `[[PRIVATE_IP_${id}]]`;
+      _map[tag] = m;
+      _stats.PRIVATE_IP++;
+      return tag;
+    });
+  }
+
+  // 8. Custom domains (all subdomains)
+  if(_domains.length){
+    _domains.forEach(domain => {
+      const re = new RegExp(`([a-zA-Z0-9][a-zA-Z0-9\\-]*\\.)*${escapeRegex(domain)}`, 'g');
+      out = out.replace(re, m => {
+        const id = stableId(m);
+        const tag = `[[DOMAIN_${id}]]`;
+        _map[tag] = m;
+        _stats.HOSTNAME++;
+        return tag;
+      });
+    });
+  }
+
+  // 9. Heuristic: key=secret pairs
+  if(document.getElementById('r-heur').checked){
+    out = out.replace(HEURISTIC_RE, (m, key, val) => {
+      const id = stableId(val);
+      const tag = `[[SECRET_${id}]]`;
+      _map[tag] = val;
+      _stats.HEURISTIC++;
+      return m.replace(val, tag);
+    });
+  }
+
+  // 10. Key=value credential pairs (generic pattern)
+  if(document.getElementById('r-cred').checked){
+    const CRED_RE = /\b(token|apikey|api_key|secret|password|passwd|auth|credential|key)\s*[:=]\s*["']?([A-Za-z0-9_\-\.\/+]{16,})["']?/gi;
+    out = out.replace(CRED_RE, (m, key, val) => {
+      if(val.startsWith('[[')) return m; // already tagged
+      const id = stableId(val);
+      const tag = `[[CRED_${id}]]`;
+      _map[tag] = val;
+      _stats.CREDENTIAL++;
+      return m.replace(val, tag);
+    });
+  }
+
+  // 11. Username in paths
+  if(document.getElementById('mask-user-cb').checked){
+    const uname = document.getElementById('user-input').value.trim();
+    if(uname){
+      const re = new RegExp(`/(home|Users|var/home)/${escapeRegex(uname)}(/|\\b)`, 'g');
+      out = out.replace(re, (m, prefix, suffix) => {
+        const id = stableId(uname);
+        const tag = `[[USER_${id}]]`;
+        _map[tag] = uname;
+        _stats.USERNAME++;
+        return `/${prefix}/${tag}${suffix}`;
+      });
+    }
+  }
+
+  return out;
+}
+
+// ── Detect log format ──
+function detectLogType(text){
+  if(!text || text.length < 20) return '';
+  const sample = text.slice(0, 2000);
+  for(const fmt of LOG_FORMATS){
+    if(fmt.re.test(sample)) return fmt;
+  }
+  return null;
+}
+
+// ── Highlight output ──
+function highlight(text){
+  const esc = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return esc
+    .replace(/\[\[PRIVATE_IP_([a-f0-9]+)\]\]/g, '<span class="tag-ip">[[PRIVATE_IP_$1]]</span>')
+    .replace(/\[\[EMAIL_([a-f0-9]+)\]\]/g, '<span class="tag-email">[[EMAIL_$1]]</span>')
+    .replace(/\[\[MAC_([a-f0-9]+)\]\]/g, '<span class="tag-mac">[[MAC_$1]]</span>')
+    .replace(/\[\[TOKEN_([a-f0-9]+)\]\]/g, '<span class="tag-token">[[TOKEN_$1]]</span>')
+    .replace(/\[\[JWT_([a-f0-9]+)\]\]/g, '<span class="tag-jwt">[[JWT_$1]]</span>')
+    .replace(/\[\[URL_CRED_([a-f0-9]+)\]\]/g, '<span class="tag-url">[[URL_CRED_$1]]</span>')
+    .replace(/\[\[DOMAIN_([a-f0-9]+)\]\]/g, '<span class="tag-host">[[DOMAIN_$1]]</span>')
+    .replace(/\[\[(CRED|SECRET)_([a-f0-9]+)\]\]/g, '<span class="tag-cred">[[$1_$2]]</span>')
+    .replace(/\[\[USER_([a-f0-9]+)\]\]/g, '<span class="tag-user">[[USER_$1]]</span>')
+    .replace(/\[\[LITERAL_([a-f0-9]+)\]\]/g, '<span class="tag-lit">[[LITERAL_$1]]</span>')
+    .replace(/\[\[(SECRET|HEURISTIC)_([a-f0-9]+)\]\]/g, '<span class="tag-heur">[[$1_$2]]</span>');
+}
+
+// ── Main processing ──
+let _lastOutput = '';
+
+function onInput(){
+  reprocess();
+}
+
+function reprocess(){
+  const text = document.getElementById('input-area').value;
+  if(!text.trim()){
+    document.getElementById('output-area').innerHTML = '';
+    _lastOutput = '';
+    updateStatus(text);
+    updateStats();
+    updateLogType('');
+    return;
+  }
+  const result = redact(text);
+  _lastOutput = result;
+  document.getElementById('output-area').innerHTML = highlight(result);
+  updateStats();
+  updateLogType(text);
+  updateStatus(text);
+}
+
+function updateStats(){
+  const keys = ['PRIVATE_IP','EMAIL','MAC','TOKEN','JWT','URL_CRED','HOSTNAME','CREDENTIAL','USERNAME','LITERAL','HEURISTIC'];
+  const elMap = {
+    PRIVATE_IP: 'ip', EMAIL: 'email', MAC: 'mac', TOKEN: 'token',
+    JWT: 'jwt', URL_CRED: 'url', HOSTNAME: 'host', CREDENTIAL: 'cred',
+    USERNAME: 'user', LITERAL: 'lit', HEURISTIC: 'heur'
+  };
+  let total = 0;
+  keys.forEach(k => {
+    const n = _stats[k] || 0;
+    total += n;
+    const el = document.getElementById('sc-' + elMap[k]);
+    if(el){
+      el.textContent = n;
+      el.closest('.stat-row').classList.toggle('has-hits', n > 0);
+    }
+  });
+  return total;
+}
+
+function updateLogType(text){
+  const badge = document.getElementById('logtype-badge');
+  const label = document.getElementById('logtype-label');
+  if(!text){
+    badge.className = 'logtype-badge';
+    label.textContent = t('logtype_none');
+    _detectedLogType = '';
+    document.getElementById('sb-logtype-hint').textContent = '';
+    return;
+  }
+  const fmt = detectLogType(text);
+  if(fmt){
+    badge.className = 'logtype-badge detected';
+    label.textContent = _lang === 'zh' ? fmt.name : fmt.nameEn;
+    _detectedLogType = _lang === 'zh' ? fmt.name : fmt.nameEn;
+    document.getElementById('sb-logtype-hint').textContent = _detectedLogType;
+  } else {
+    badge.className = 'logtype-badge';
+    label.textContent = t('logtype_generic');
+    _detectedLogType = '';
+    document.getElementById('sb-logtype-hint').textContent = '';
+  }
+}
+
+function updateStatus(text){
+  const chars = text.length;
+  const lines = text ? text.split('\n').length : 0;
+  document.getElementById('sb-chars').textContent = `${chars.toLocaleString()} ${t('chars')}`;
+  document.getElementById('sb-lines').textContent = `${lines.toLocaleString()} ${t('lines')}`;
+
+  const total = Object.values(_stats).reduce((a,b)=>a+b,0);
+  const pill = document.getElementById('status-pill');
+  if(!text.trim()){
+    pill.className = 'pill';
+    pill.textContent = '—';
+  } else if(total === 0){
+    pill.className = 'pill clean';
+    pill.textContent = t('status_clean');
+  } else {
+    pill.className = 'pill masked';
+    pill.textContent = `${total} ${t('status_masked')}`;
+  }
+}
+
+// ── Domains & Literals ──
+function escapeRegex(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function renderTags(arr, containerId, removeFn){
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  arr.forEach((v,i) => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.title = `${t('click_remove')} ${v}`;
+    tag.innerHTML = `${escapeHtml(v)} <span class="x">✕</span>`;
+    tag.onclick = () => removeFn(i);
+    el.appendChild(tag);
+  });
+}
+
+function addDomain(e){
+  if(e) e.preventDefault && e.preventDefault();
+  const inp = document.getElementById('domain-input');
+  const v = inp.value.trim().toLowerCase();
+  if(!v || _domains.includes(v)) return;
+  _domains.push(v);
+  localStorage.setItem('la-domains', JSON.stringify(_domains));
+  renderTags(_domains, 'domain-tags', removeDomain);
+  inp.value = '';
+  reprocess();
+}
+
+function removeDomain(i){
+  _domains.splice(i, 1);
+  localStorage.setItem('la-domains', JSON.stringify(_domains));
+  renderTags(_domains, 'domain-tags', removeDomain);
+  reprocess();
+}
+
+function addLiteral(e){
+  if(e) e.preventDefault && e.preventDefault();
+  const inp = document.getElementById('literal-input');
+  const v = inp.value.trim();
+  if(!v || _literals.includes(v)) return;
+  _literals.push(v);
+  localStorage.setItem('la-literals', JSON.stringify(_literals));
+  renderTags(_literals, 'literal-tags', removeLiteral);
+  inp.value = '';
+  reprocess();
+}
+
+function removeLiteral(i){
+  _literals.splice(i, 1);
+  localStorage.setItem('la-literals', JSON.stringify(_literals));
+  renderTags(_literals, 'literal-tags', removeLiteral);
+  reprocess();
+}
+
+document.getElementById('domain-input').addEventListener('keydown', e => { if(e.key==='Enter') addDomain(e); });
+document.getElementById('literal-input').addEventListener('keydown', e => { if(e.key==='Enter') addLiteral(e); });
+
+function toggleUserInput(){
+  const cb = document.getElementById('mask-user-cb').checked;
+  document.getElementById('user-input').style.display = cb ? 'block' : 'none';
+  reprocess();
+}
+
+// ── Actions ──
+function copyOutput(){
+  navigator.clipboard.writeText(_lastOutput).then(()=>{
+    const btn = document.getElementById('b-copy');
+    const old = btn.textContent;
+    btn.textContent = '✓ ' + t('copied');
+    setTimeout(()=>btn.textContent=old, 1500);
+  });
+}
+
+function downloadOutput(){
+  const blob = new Blob([_lastOutput], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'anonymized.log';
+  a.click();
+}
+
+function downloadMap(){
+  const blob = new Blob([JSON.stringify(_map, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'anonymized.map.json';
+  a.click();
+}
+
+function clearAll(){
+  document.getElementById('input-area').value = '';
+  document.getElementById('output-area').innerHTML = '';
+  _lastOutput = '';
+  _map = {};
+  _stats = {};
+  updateStats();
+  updateStatus('');
+  updateLogType('');
+}
+
+function copyRestore(){
+  const txt = document.getElementById('restore-output').textContent;
+  navigator.clipboard.writeText(txt);
+}
+
+// ── Mode ──
+function setMode(m){
+  _mode = m;
+  document.getElementById('anon-mode').style.display = m==='anon' ? '' : 'none';
+  document.getElementById('restore-mode').style.display = m==='restore' ? '' : 'none';
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+m).classList.add('active');
+}
+
+// ── Restore mode ──
+function loadMapFile(file){
+  if(!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      _loadedMap = JSON.parse(e.target.result);
+      const n = Object.keys(_loadedMap).length;
+      document.getElementById('ri-hint').innerHTML = `✅ ${t('map_loaded')} <strong>${n}</strong> ${t('map_entries')}`;
+      document.getElementById('map-drop').classList.add('detected');
+      onRestoreInput();
+    } catch(err){
+      document.getElementById('ri-hint').textContent = '❌ ' + t('map_invalid');
+    }
+  };
+  r.readAsText(file);
+}
+
+function mapDragOver(e){ e.preventDefault(); document.getElementById('map-drop').classList.add('over'); }
+function mapDrop(e){
+  e.preventDefault();
+  document.getElementById('map-drop').classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if(f) loadMapFile(f);
+}
+
+function onRestoreInput(){
+  const text = document.getElementById('restore-input').value;
+  if(!_loadedMap || !text){
+    document.getElementById('restore-output').textContent = text;
+    return;
+  }
+  let result = text;
+  Object.entries(_loadedMap).forEach(([tag, orig]) => {
+    result = result.split(tag).join(orig);
+  });
+  document.getElementById('restore-output').textContent = result;
+}
+
+// ── Utils ──
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── i18n ──
+const STRINGS = {
+  zh: {
+    title: '🪵 Log Anonymizer',
+    sub: '貼上 Log，自動遮蔽 IP · Token · 憑證 · 主機名',
+    lang_btn: 'EN',
+    tab_anon: '🛡 遮蔽',
+    tab_restore: '↩ 還原',
+    s_stats: '偵測結果',
+    s_logtype: '格式偵測',
+    s_rules: '啟用規則',
+    s_domains: '自訂網域',
+    s_literals: '遮蔽字串',
+    s_username: '使用者名稱',
+    sl_ip: '私有 IP',
+    sl_email: 'Email',
+    sl_mac: 'MAC 位址',
+    sl_token: 'Token / API Key',
+    sl_jwt: 'JWT',
+    sl_url: 'URL 憑證',
+    sl_host: '自訂主機名',
+    sl_cred: 'Key=Value 憑證',
+    sl_user: '使用者名稱',
+    sl_lit: '自訂字面值',
+    sl_heur: '啟發式',
+    rl_ip: '私有 IP (RFC 1918)',
+    rl_email: 'Email 地址',
+    rl_mac: 'MAC 位址',
+    rl_token: 'Token / API Key',
+    rl_jwt: 'JWT',
+    rl_url: 'URL 憑證',
+    rl_cred: 'Key=Value 憑證',
+    rl_heur: '啟發式偵測',
+    b_add_domain: '+ 加入',
+    b_add_literal: '+ 加入',
+    mu_label: '遮蔽路徑中的使用者名',
+    b_copy: '📋 複製結果',
+    b_dl: '💾 下載遮蔽版',
+    b_map: '🗺 下載對照表 (.map.json)',
+    b_clear: '✕ 清除',
+    ph_input: '輸入 Log',
+    ph_output: '遮蔽結果',
+    pb_select: '全選',
+    pb_copy: '複製',
+    rh_anon: '遮蔽後 Log',
+    rh_orig: '還原結果',
+    ri_hint: '載入 .map.json 後貼上遮蔽後的 Log，即可還原',
+    md_hint: '🗺 拖曳或點選 .map.json',
+    pb_restore: '複製',
+    logtype_none: '尚未偵測',
+    logtype_generic: '一般文字',
+    chars: '字元',
+    lines: '行',
+    status_clean: '✅ 無敏感資料',
+    status_masked: '項已遮蔽',
+    click_remove: '點擊移除',
+    copied: '已複製',
+    map_loaded: '已載入',
+    map_entries: '個映射',
+    map_invalid: '格式錯誤，請確認是 .map.json',
+    input_placeholder: '在此貼上 Log 內容...\n\n支援格式：nginx access/error · syslog · journalctl · docker · kubernetes · apache · python logging · JSON log · Windows event log',
+  },
+  en: {
+    title: '🪵 Log Anonymizer',
+    sub: 'Paste logs — auto-redact IPs, tokens, credentials, hostnames',
+    lang_btn: '中',
+    tab_anon: '🛡 Redact',
+    tab_restore: '↩ Restore',
+    s_stats: 'Detection Stats',
+    s_logtype: 'Format Detection',
+    s_rules: 'Active Rules',
+    s_domains: 'Custom Domains',
+    s_literals: 'Mask Strings',
+    s_username: 'Username',
+    sl_ip: 'Private IP',
+    sl_email: 'Email',
+    sl_mac: 'MAC Address',
+    sl_token: 'Token / API Key',
+    sl_jwt: 'JWT',
+    sl_url: 'URL Credential',
+    sl_host: 'Custom Hostname',
+    sl_cred: 'Key=Value Cred',
+    sl_user: 'Username',
+    sl_lit: 'Custom Literal',
+    sl_heur: 'Heuristic',
+    rl_ip: 'Private IP (RFC 1918)',
+    rl_email: 'Email Address',
+    rl_mac: 'MAC Address',
+    rl_token: 'Token / API Key',
+    rl_jwt: 'JWT',
+    rl_url: 'URL Credential',
+    rl_cred: 'Key=Value Credential',
+    rl_heur: 'Heuristic detection',
+    b_add_domain: '+ Add',
+    b_add_literal: '+ Add',
+    mu_label: 'Redact username from paths',
+    b_copy: '📋 Copy Output',
+    b_dl: '💾 Download Redacted',
+    b_map: '🗺 Download Map (.map.json)',
+    b_clear: '✕ Clear',
+    ph_input: 'Input Log',
+    ph_output: 'Redacted Output',
+    pb_select: 'Select All',
+    pb_copy: 'Copy',
+    rh_anon: 'Redacted Log',
+    rh_orig: 'Restored Output',
+    ri_hint: 'Load .map.json then paste the redacted log to restore',
+    md_hint: '🗺 Drag or click to load .map.json',
+    pb_restore: 'Copy',
+    logtype_none: 'Not detected',
+    logtype_generic: 'Generic text',
+    chars: 'chars',
+    lines: 'lines',
+    status_clean: '✅ No sensitive data',
+    status_masked: 'items redacted',
+    click_remove: 'Click to remove',
+    copied: 'Copied',
+    map_loaded: 'Loaded',
+    map_entries: 'mappings',
+    map_invalid: 'Invalid format — must be .map.json',
+    input_placeholder: 'Paste log content here...\n\nSupported: nginx access/error · syslog · journalctl · docker · kubernetes · apache · python logging · JSON log · Windows event log',
+  }
+};
+
+function t(key){ return (STRINGS[_lang]||STRINGS.zh)[key] || key; }
+
+function applyLang(lang){
+  _lang = lang;
+  localStorage.setItem('la-lang', lang);
+  document.getElementById('lang-btn').textContent = t('lang_btn');
+  document.getElementById('h-title').textContent = t('title');
+  document.getElementById('h-sub').textContent = t('sub');
+  document.getElementById('tab-anon').textContent = t('tab_anon');
+  document.getElementById('tab-restore').textContent = t('tab_restore');
+  // Sidebar sections
+  document.getElementById('s-stats').textContent = t('s_stats');
+  document.getElementById('s-logtype').textContent = t('s_logtype');
+  document.getElementById('s-rules').textContent = t('s_rules');
+  document.getElementById('s-domains').textContent = t('s_domains');
+  document.getElementById('s-literals').textContent = t('s_literals');
+  document.getElementById('s-username').textContent = t('s_username');
+  // Stat labels
+  document.getElementById('sl-ip').textContent = t('sl_ip');
+  document.getElementById('sl-email').textContent = t('sl_email');
+  document.getElementById('sl-mac').textContent = t('sl_mac');
+  document.getElementById('sl-token').textContent = t('sl_token');
+  document.getElementById('sl-jwt').textContent = t('sl_jwt');
+  document.getElementById('sl-url').textContent = t('sl_url');
+  document.getElementById('sl-host').textContent = t('sl_host');
+  document.getElementById('sl-cred').textContent = t('sl_cred');
+  document.getElementById('sl-user').textContent = t('sl_user');
+  document.getElementById('sl-lit').textContent = t('sl_lit');
+  document.getElementById('sl-heur').textContent = t('sl_heur');
+  // Rule labels
+  document.getElementById('rl-ip').textContent = t('rl_ip');
+  document.getElementById('rl-email').textContent = t('rl_email');
+  document.getElementById('rl-mac').textContent = t('rl_mac');
+  document.getElementById('rl-token').textContent = t('rl_token');
+  document.getElementById('rl-jwt').textContent = t('rl_jwt');
+  document.getElementById('rl-url').textContent = t('rl_url');
+  document.getElementById('rl-cred').textContent = t('rl_cred');
+  document.getElementById('rl-heur').textContent = t('rl_heur');
+  // Buttons
+  document.getElementById('b-add-domain').textContent = t('b_add_domain');
+  document.getElementById('b-add-literal').textContent = t('b_add_literal');
+  document.getElementById('mu-label').textContent = t('mu_label');
+  document.getElementById('b-copy').textContent = t('b_copy');
+  document.getElementById('b-dl').textContent = t('b_dl');
+  document.getElementById('b-map').textContent = t('b_map');
+  document.getElementById('b-clear').textContent = t('b_clear');
+  // Panel headers
+  document.getElementById('ph-input').textContent = t('ph_input');
+  document.getElementById('ph-output').textContent = t('ph_output');
+  document.getElementById('pb-select').textContent = t('pb_select');
+  document.getElementById('pb-copy').textContent = t('pb_copy');
+  document.getElementById('rh-anon').textContent = t('rh_anon');
+  document.getElementById('rh-orig').textContent = t('rh_orig');
+  document.getElementById('ri-hint').textContent = t('ri_hint');
+  document.getElementById('md-hint').textContent = t('md_hint');
+  document.getElementById('pb-restore').textContent = t('pb_restore');
+  // Input placeholder
+  document.getElementById('input-area').placeholder = t('input_placeholder');
+  // Logtype
+  updateLogType(document.getElementById('input-area').value);
+  updateStatus(document.getElementById('input-area').value);
+}
+
+function setLang(lang){ applyLang(lang); }
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  renderTags(_domains, 'domain-tags', removeDomain);
+  renderTags(_literals, 'literal-tags', removeLiteral);
+  applyLang(_lang);
+  updateStatus('');
+});
+</script>
+</body>
+</html>
