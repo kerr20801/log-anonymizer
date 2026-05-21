@@ -570,14 +570,17 @@ function iqrOutliers(vals, k){
   return vals.map(v => iqr < 1e-9 ? 0 : Math.max(0,(v-q3-k*iqr)/iqr, (q1-k*iqr-v)/iqr));
 }
 
-function cusum(vals, k, h){
-  const valid = vals.filter(v=>v>0);
-  if(!valid.length) return vals.map(()=>0);
+// CUSUM on error RATE (errors/count), resets during zero-count gaps
+function cusumOnRate(buckets, k, h){
+  const rates = buckets.map(b => b.count >= 5 ? b.errors / b.count : null);
+  const valid  = rates.filter(r => r !== null);
+  if(!valid.length) return buckets.map(()=>0);
   const mean = valid.reduce((a,b)=>a+b,0)/valid.length;
-  const std  = Math.sqrt(valid.reduce((a,b)=>a+(b-mean)**2,0)/valid.length) || 1;
+  const std  = Math.sqrt(valid.reduce((a,b)=>a+(b-mean)**2,0)/valid.length) || 0.01;
   let sp=0, sn=0;
-  return vals.map(v => {
-    const x = (v-mean)/std;
+  return rates.map(r => {
+    if(r === null){ sp=0; sn=0; return 0; } // reset during quiet periods
+    const x = (r-mean)/std;
     sp = Math.max(0, sp+x-k);
     sn = Math.max(0, sn-x-k);
     return Math.max(sp, sn);
@@ -617,24 +620,30 @@ function runAnalyze(){
   const counts = buckets.map(b=>b.count);
   const errors = buckets.map(b=>b.errors);
 
-  const zCount  = rollingZScore(counts, win);
-  const zErrors = rollingZScore(errors, win);
-  const cusCount= cusum(counts, cusK, cusH);
-  const iqrCount= iqrOutliers(counts, iqrK);
+  const zCount   = rollingZScore(counts, win);
+  const zErrors  = rollingZScore(errors, win);
+  const cusErr   = cusumOnRate(buckets, cusK, cusH);  // on error rate, resets on gaps
+  const iqrCount = iqrOutliers(counts, iqrK);
   const ipOutliers = ipFrequencyOutliers(withTs, iqrK);
 
-  // Merge anomalies
+  // Merge anomalies — only positive Z (spikes), skip zero-count buckets for CUSUM
   const anomalies = [];
   buckets.forEach((b, i) => {
-    const zc = zCount[i], ze = zErrors[i], cc = cusCount[i], ic = iqrCount[i];
-    const maxScore = Math.max(Math.abs(zc), Math.abs(ze), cc/5, ic);
+    const zc = zCount[i],  ze = zErrors[i];
+    const cc = cusErr[i],  ic = iqrCount[i];
+    // Only flag upward spikes — negative Z means traffic dropped, not an attack
+    const spikeScore = Math.max(zc > 0 ? zc : 0, ze > 0 ? ze : 0);
+    const driftScore = cc / Math.max(cusH, 1);
+    const maxScore   = Math.max(spikeScore, driftScore, ic);
     if(maxScore < 1.2) return;
+    if(b.count === 0) return; // never flag empty buckets
     const sev = maxScore >= 3 ? 'high' : maxScore >= 2 ? 'medium' : 'low';
     let algo = '', desc = '', detail = '';
-    if(Math.abs(ze) >= Math.abs(zc) && Math.abs(ze) > 1.2){ algo='Z-score'; desc=t('anom_error_spike'); detail=`Z=${ze.toFixed(1)}, ${b.errors} errors`; }
-    else if(Math.abs(zc) > 1.2){ algo='Z-score'; desc=t('anom_count_spike'); detail=`Z=${zc.toFixed(1)}, ${b.count} events`; }
-    else if(cc > cusH*0.6){ algo='CUSUM'; desc=t('anom_drift'); detail=`S=${cc.toFixed(1)}, ${b.count} events`; }
-    else if(ic > 0){ algo='IQR'; desc=t('anom_outlier'); detail=`IQR score=${ic.toFixed(1)}`; }
+    if(ze > 1.2 && ze >= zc){ algo='Z-score'; desc=t('anom_error_spike'); detail=`Z=${ze.toFixed(1)}, ${b.errors} errors / ${b.count} total`; }
+    else if(zc > 1.2)        { algo='Z-score'; desc=t('anom_count_spike'); detail=`Z=${zc.toFixed(1)}, ${b.count} events`; }
+    else if(driftScore > 0.6){ algo='CUSUM';   desc=t('anom_drift');       detail=`S=${cc.toFixed(1)}, err rate=${b.count>0?(b.errors/b.count*100).toFixed(1):'—'}%`; }
+    else if(ic > 0)           { algo='IQR';    desc=t('anom_outlier');     detail=`IQR score=${ic.toFixed(1)}, ${b.count} events`; }
+    else return;
     anomalies.push({ts:b.ts, sev, algo, desc, detail, bucketIdx:i,
       lines: withTs.filter(e => Math.floor(e.ts.getTime()/(res*1000))*res*1000 === b.ts).map(e=>e.lineNo)
     });
@@ -662,7 +671,7 @@ function runAnalyze(){
     });
   });
 
-  _analysisResult = {anomalies, buckets, counts, zCount, zErrors, cusCount, iqrCount, parsed, lineAnomalyMap, res, spanMs, totalEvents, totalErrors, errRate, ipOutliers};
+  _analysisResult = {anomalies, buckets, counts, zCount, zErrors, cusErr, iqrCount, parsed, lineAnomalyMap, res, spanMs, totalEvents, totalErrors, errRate, ipOutliers};
   renderAnalysis(_analysisResult);
 }
 
@@ -675,7 +684,7 @@ function clearAnalysis(){
 }
 
 function renderAnalysis(r){
-  const {anomalies, buckets, counts, zCount, cusCount, iqrCount, parsed, lineAnomalyMap, res, spanMs, totalEvents, errRate} = r;
+  const {anomalies, buckets, counts, zCount, cusErr, iqrCount, parsed, lineAnomalyMap, res, spanMs, totalEvents, errRate} = r;
 
   // Stat cards
   document.getElementById('ac-lines').textContent = totalEvents.toLocaleString();
@@ -692,7 +701,7 @@ function renderAnalysis(r){
   document.getElementById('an-err').textContent = errRate;
 
   // SVG chart
-  renderChart(buckets, counts, zCount, cusCount, iqrCount, res);
+  renderChart(buckets, counts, zCount, cusErr, iqrCount, res);
 
   // Anomaly list
   const listEl = document.getElementById('anomaly-list');
